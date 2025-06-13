@@ -1,0 +1,14 @@
+[project]
+name = "fastapi-rq-example"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi[standard]>=0.115.12",
+    "pydantic>=2.11.5",
+    "redis>=6.2.0",
+    "rq>=2.3.3",
+    "uvicorn>=0.34.3",
+]
+

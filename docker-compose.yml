@@ -1,0 +1,41 @@
+version: "3.9"
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  web:
+    image: fastapi_rq
+    build:
+      context: .
+      dockerfile: Dockerfile    
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .venv/
+
+        - action: rebuild
+          path: ./uv.lock
+
+  rq-worker:
+    image: fastapi_rq
+    command: rq worker -u redis://redis:6379 --with-scheduler
+    deploy:
+      replicas: 2
+
+  rq-dashboard:
+    image: eoranged/rq-dashboard
+    ports:
+      - "9181:9181"
+    environment:
+      - RQ_DASHBOARD_REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis

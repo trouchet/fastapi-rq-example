@@ -1,34 +1,37 @@
-from fastapi import FastAPI, HTTPException, APIRouter, Response
+from datetime import datetime
 from enum import Enum
+
+from fastapi import APIRouter
+from fastapi import FastAPI
+from fastapi import HTTPException
+from fastapi import Response
+from pydantic import BaseModel
 from redis import Redis
 from rq import Queue
 from rq.job import Job
-from pydantic import BaseModel
-from datetime import datetime
 
-from src.tasks import add, subtract, multiply, divide, increment
+from src.tasks import add
+from src.tasks import divide
+from src.tasks import increment
+from src.tasks import multiply
+from src.tasks import subtract
 
 app = FastAPI(
     title="Task Queue API",
     description="API for managing task queues using Redis and RQ",
     version="1.0.0",
     openapi_tags=[
-        {
-            "name": "tasks",
-            "description": "Operations related to task management"
-        },
-        {
-            "name": "queue",
-            "description": "Operations related to queue management"
-        }
+        {"name": "tasks", "description": "Operations related to task management"},
+        {"name": "queue", "description": "Operations related to queue management"},
     ],
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
 )
 
 redis_conn = Redis(host="redis", port=6379)
 q = Queue(connection=redis_conn)
+
 
 class Operation(str, Enum):
     add = "add"
@@ -36,6 +39,7 @@ class Operation(str, Enum):
     multiply = "multiply"
     divide = "divide"
     increment = "increment"
+
 
 operation_map = {
     Operation.add: add,
@@ -47,10 +51,12 @@ operation_map = {
 
 tasks_router = APIRouter(prefix="/tasks")
 
+
 class OperationRequest(BaseModel):
     a: int
     b: int = 0
     operation: Operation = Operation.add
+
 
 # ---------------------------------------------------------------
 # Task management endpoints
@@ -72,8 +78,9 @@ def enqueue_task(request: OperationRequest, response: Response):
         "job_id": job_id,
         "status": "queued",
         "location": location,
-        "poll_interval_seconds": 2
+        "poll_interval_seconds": 2,
     }
+
 
 @tasks_router.get("/job/{job_id}")
 def get_job_status(job_id: str):
@@ -106,7 +113,11 @@ def get_job_status(job_id: str):
     if hasattr(job, "result_ttl"):
         result_ttl = job.result_ttl
     if hasattr(job, "ended_at") and job.ended_at:
-        finished_at = job.ended_at.isoformat() if isinstance(job.ended_at, datetime) else str(job.ended_at)
+        finished_at = (
+            job.ended_at.isoformat()
+            if isinstance(job.ended_at, datetime)
+            else str(job.ended_at)
+        )
 
     return {
         "job_id": job.id,
@@ -115,8 +126,9 @@ def get_job_status(job_id: str):
         "exception": exc_string,
         "result_expires_in_seconds": result_ttl,
         "finished_at": finished_at,
-        "poll_interval_seconds": 2
+        "poll_interval_seconds": 2,
     }
+
 
 @tasks_router.get("/job/{job_id}/history")
 def get_job_history(job_id: str):
@@ -130,12 +142,14 @@ def get_job_history(job_id: str):
     history = []
     try:
         for exec_result in job.results():
-            history.append({
-                "created_at": exec_result.created_at,
-                "type": exec_result.type.name,
-                "result": exec_result.return_value,
-                "exception": exec_result.exc_string,
-            })
+            history.append(
+                {
+                    "created_at": exec_result.created_at,
+                    "type": exec_result.type.name,
+                    "result": exec_result.return_value,
+                    "exception": exec_result.exc_string,
+                }
+            )
     except Exception:
         # results() may not be available in older RQ
         pass
@@ -147,13 +161,18 @@ def get_job_history(job_id: str):
 # ----------------------------------------------------------------
 queue_router = APIRouter(prefix="/queue")
 
+
 @queue_router.get("/count")
 def queue_count():
     return {"count": q.count}
 
+
 app.include_router(tasks_router, tags=["tasks"])
 app.include_router(queue_router, tags=["queue"])
 
+
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the Task Queue API. Use /tasks/enqueue to add tasks."}
+    return {
+        "message": "Welcome to the Task Queue API. Use /tasks/enqueue to add tasks."
+    }

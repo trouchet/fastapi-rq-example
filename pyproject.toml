@@ -11,4 +11,3 @@ dependencies = [
     "rq>=2.3.3",
     "uvicorn>=0.34.3",
 ]
-

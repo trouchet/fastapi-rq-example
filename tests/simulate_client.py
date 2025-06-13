@@ -1,10 +1,15 @@
-import requests
-import time
 import threading
+import time
+
+import requests
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+from rich.progress import BarColumn
+from rich.progress import Progress
+from rich.progress import SpinnerColumn
+from rich.progress import TextColumn
+from rich.progress import TimeElapsedColumn
+from rich.table import Table
 
 console = Console()
 
@@ -16,7 +21,10 @@ OPERATIONS = [
     ("increment", 5, None),
 ]
 
-def enqueue_and_poll(operation, a, b=None, output_list=None, idx=None, progress=None, task_id=None):
+
+def enqueue_and_poll(
+    operation, a, b=None, output_list=None, idx=None, progress=None, task_id=None
+):
     url = "http://localhost:8000/tasks/enqueue"
     payload = {"a": a, "operation": operation}
     if b is not None:
@@ -31,7 +39,7 @@ def enqueue_and_poll(operation, a, b=None, output_list=None, idx=None, progress=
                 "rule": f"[bold blue]{operation.upper()}[/] [a={a}, b={b}]",
                 "table": None,
                 "panel": Panel.fit(f"[red][{operation}] Request failed: {e}[/red]"),
-                "summary": (operation, "failed", "-", 0, f"{e}")
+                "summary": (operation, "failed", "-", 0, f"{e}"),
             }
         if progress and task_id is not None:
             progress.advance(task_id)
@@ -44,8 +52,10 @@ def enqueue_and_poll(operation, a, b=None, output_list=None, idx=None, progress=
             output_list[idx] = {
                 "rule": f"[bold blue]{operation.upper()}[/] [a={a}, b={b}]",
                 "table": None,
-                "panel": Panel.fit(f"[red][{operation}] Invalid response: {response.text}[/red]"),
-                "summary": (operation, "failed", "-", 0, "Invalid response")
+                "panel": Panel.fit(
+                    f"[red][{operation}] Invalid response: {response.text}[/red]"
+                ),
+                "summary": (operation, "failed", "-", 0, "Invalid response"),
             }
         if progress and task_id is not None:
             progress.advance(task_id)
@@ -58,7 +68,7 @@ def enqueue_and_poll(operation, a, b=None, output_list=None, idx=None, progress=
                 "rule": f"[bold blue]{operation.upper()}[/] [a={a}, b={b}]",
                 "table": None,
                 "panel": Panel.fit(f"[red][{operation}] No job_id returned![/red]"),
-                "summary": (operation, "failed", "-", 0, "No job_id returned")
+                "summary": (operation, "failed", "-", 0, "No job_id returned"),
             }
         if progress and task_id is not None:
             progress.advance(task_id)
@@ -95,7 +105,11 @@ def enqueue_and_poll(operation, a, b=None, output_list=None, idx=None, progress=
         result = str(job_data.get("result"))
         exc = str(job_data.get("exception")) if job_data.get("exception") else "-"
         finished_at = job_data.get("finished_at") or "-"
-        expires_in = str(job_data.get("result_expires_in_seconds")) if job_data.get("result_expires_in_seconds") is not None else "-"
+        expires_in = (
+            str(job_data.get("result_expires_in_seconds"))
+            if job_data.get("result_expires_in_seconds") is not None
+            else "-"
+        )
         table.add_row(str(i), status, result, exc, finished_at, expires_in)
         if status == "finished":
             duration = time.time() - start_time
@@ -108,23 +122,36 @@ def enqueue_and_poll(operation, a, b=None, output_list=None, idx=None, progress=
         duration = time.time() - start_time
 
     if status == "finished":
-        result_panel = Panel.fit(f"[bold green]{operation.upper()} result: {result}[/bold green]")
-        summary = (operation, "[green]finished[/green]", result, round(duration, 2), "-")
+        result_panel = Panel.fit(
+            f"[bold green]{operation.upper()} result: {result}[/bold green]"
+        )
+        summary = (
+            operation,
+            "[green]finished[/green]",
+            result,
+            round(duration, 2),
+            "-",
+        )
     elif status in ("failed", "stopped"):
-        result_panel = Panel.fit(f"[bold red]{operation.upper()} failed: {exc}[/bold red]")
+        result_panel = Panel.fit(
+            f"[bold red]{operation.upper()} failed: {exc}[/bold red]"
+        )
         summary = (operation, "[red]failed[/red]", "-", round(duration, 2), exc)
     else:
-        result_panel = Panel.fit(f"[yellow]{operation.upper()} job did not finish in time.[/yellow]")
+        result_panel = Panel.fit(
+            f"[yellow]{operation.upper()} job did not finish in time.[/yellow]"
+        )
         summary = (operation, "[yellow]timeout[/yellow]", "-", round(duration, 2), "-")
     if output_list is not None and idx is not None:
         output_list[idx] = {
             "rule": f"[bold blue]{operation.upper()}[/] [a={a}, b={b}]",
             "table": table,
             "panel": result_panel,
-            "summary": summary
+            "summary": summary,
         }
     if progress and task_id is not None:
         progress.advance(task_id)
+
 
 def main():
     threads = []
@@ -134,13 +161,16 @@ def main():
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         TimeElapsedColumn(),
-        console=console
+        console=console,
     )
     with progress:
         # One progress bar for all tasks
         task_id = progress.add_task("Processing all jobs...", total=len(OPERATIONS))
         for idx, (op, a, b) in enumerate(OPERATIONS):
-            t = threading.Thread(target=enqueue_and_poll, args=(op, a, b, outputs, idx, progress, task_id))
+            t = threading.Thread(
+                target=enqueue_and_poll,
+                args=(op, a, b, outputs, idx, progress, task_id),
+            )
             t.start()
             threads.append(t)
         for t in threads:
@@ -165,6 +195,7 @@ def main():
         summary.add_row(op, status, result, str(duration), exc)
     console.rule("[bold magenta]All Jobs Summary[/bold magenta]")
     console.print(summary)
+
 
 if __name__ == "__main__":
     main()
